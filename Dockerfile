@@ -1,26 +1,25 @@
-FROM debian:8
+FROM debian:12-slim
 
 # less priviledge user, the id should map the user the downloaded files belongs to
 RUN groupadd -r dummy && useradd -r -g dummy dummy -u 1000
 
 # webui + aria2
-RUN apt-get update \
-	&& apt-get install -y aria2 busybox curl \
-	&& rm -rf /var/lib/apt/lists/*
+RUN apt-get update && \
+    apt-get install -y aria2 busybox curl ca-certificates libc6 && \
+    apt-get dist-upgrade -y && \
+    rm -rf /var/lib/apt/lists/*
 
 ADD ./docs /webui-aria2
 
 # gosu install latest
-RUN GITHUB_REPO="https://github.com/tianon/gosu" \
-  && LATEST=`curl -s  $GITHUB_REPO"/releases/latest" | grep -Eo "[0-9].[0-9]*"` \
-  && curl -L $GITHUB_REPO"/releases/download/"$LATEST"/gosu-amd64" > /usr/local/bin/gosu \
-  && chmod +x /usr/local/bin/gosu
+RUN curl -L "https://github.com/tianon/gosu/releases/download/1.17/gosu-amd64" > /usr/local/bin/gosu  \
+    && chmod +x /usr/local/bin/gosu
 
 # goreman supervisor install latest
-RUN GITHUB_REPO="https://github.com/mattn/goreman" \
-  && LATEST=`curl -s  $GITHUB_REPO"/releases/latest" | grep -Eo "v[0-9]*.[0-9]*.[0-9]*"` \
-  && curl -L $GITHUB_REPO"/releases/download/"$LATEST"/goreman_"$LATEST"_linux_amd64.tar.gz" > goreman.tar.gz \
-  && tar xvf goreman.tar.gz && mv /goreman*/goreman /usr/local/bin/goreman && rm -R goreman*
+RUN curl -L "https://github.com/mattn/goreman/releases/download/v0.3.15/goreman_v0.3.15_linux_amd64.tar.gz" > goreman.tar.gz \
+    && tar xvf goreman.tar.gz \
+    && mv goreman_*/goreman /usr/local/bin/goreman \
+    && rm -Rf goreman_*
 
 # goreman setup
 RUN echo "web: gosu dummy /bin/busybox httpd -f -p 8080 -h /webui-aria2\nbackend: gosu dummy /usr/bin/aria2c --enable-rpc --rpc-listen-all --dir=/data" > Procfile
